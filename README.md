@@ -1,94 +1,113 @@
-# Telemetra
+<div align="center">
 
-Real-time Twitch analytics platform powered by Apache Kafka, Spark Structured Streaming, PostgreSQL, Redis, FastAPI, and React.
+# 📊 Telemetra
 
-## Run Checklist
+### Real-time Twitch Analytics Platform
 
-Get the system running in 3 commands:
+*Powered by streaming architecture for instant insights*
+
+[![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-231F20?style=for-the-badge&logo=apache-kafka&logoColor=white)](https://kafka.apache.org/)
+[![Apache Spark](https://img.shields.io/badge/Apache%20Spark-E25A1C?style=for-the-badge&logo=apache-spark&logoColor=white)](https://spark.apache.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![D3.js](https://img.shields.io/badge/D3.js-F9A03C?style=for-the-badge&logo=d3.js&logoColor=white)](https://d3js.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+
+[Features](#-features) • [Quick Start](#-quick-start) • [Architecture](#-architecture) • [Documentation](#-documentation)
+
+</div>
+
+---
+
+## 🚀 Quick Start
+
+Get the system running in **3 commands**:
 
 ```bash
-# 1. Copy environment configuration
+# 1️⃣ Copy environment configuration
 cp .env.example .env
 
-# 2. Start all services with Docker Compose
+# 2️⃣ Start all services with Docker Compose
 docker compose up --build
 
-# 3. Access the dashboard
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8000/docs
-# Spark Master UI: http://localhost:8080
+# 3️⃣ Access the dashboard
+# 🌐 Frontend: http://localhost:3000
+# 🔧 Backend API: http://localhost:8000/docs
+# ⚡ Spark Master UI: http://localhost:8080
 ```
 
-The system will automatically:
-- Initialize Kafka topics
-- Create PostgreSQL database schema
-- Start mock Twitch event producer
-- Begin Spark streaming aggregations
-- Serve real-time dashboard with WebSocket updates
+<details>
+<summary><b>What happens automatically? 🤔</b></summary>
+
+- ✅ Initialize Kafka topics
+- ✅ Create PostgreSQL database schema
+- ✅ Start mock Twitch event producer
+- ✅ Begin Spark streaming aggregations
+- ✅ Serve real-time dashboard with WebSocket updates
+
+*Startup time: ~2-3 minutes for all services to be ready*
+
+</details>
 
 ---
 
-## Table of Contents
+## 📖 Overview
 
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Quickstart](#quickstart)
-- [Services](#services)
-- [Runbook](#runbook)
-- [Sample Analytics Queries](#sample-analytics-queries)
-- [Troubleshooting](#troubleshooting)
-- [Developer Notes](#developer-notes)
+**Telemetra** is a production-grade real-time analytics platform that processes live Twitch events, detects anomalies, and provides interactive visualizations. Built to demonstrate enterprise streaming architecture patterns.
 
----
+### 🎯 Use Cases
 
-## Overview
+- 📈 **Monitor viewer engagement** in real-time
+- 🚨 **Detect unusual activity** - chat spikes, viewer drops
+- 💬 **Track top chatters** and trending emotes
+- 😊 **Analyze sentiment** and toxicity patterns
+- 💰 **Revenue tracking** via transaction monitoring
 
-Telemetra is a real-time analytics platform for Twitch streams that processes live events, detects anomalies, and provides interactive visualizations. The system demonstrates production-grade streaming architecture with:
+### 🏗️ Key Components
 
-- **Real-time event processing** via Apache Kafka
-- **Windowed aggregations** using Spark Structured Streaming
-- **Low-latency API** with FastAPI and Redis caching
-- **Live dashboard** with React, D3.js, and WebSocket updates
-- **Anomaly detection** using z-score statistical analysis
-- **Sentiment analysis** with lexicon-based approach
-
-**Use Cases:**
-- Monitor viewer engagement in real-time
-- Detect unusual chat activity or viewer spikes
-- Track top chatters, emotes, and viewer trends
-- Analyze sentiment and toxicity patterns
+| Component | Purpose | Technology |
+|-----------|---------|------------|
+| **Event Streaming** | High-throughput message queue | Apache Kafka + Zookeeper |
+| **Stream Processing** | Windowed aggregations & anomaly detection | Spark Structured Streaming |
+| **Data Storage** | Persistent metrics & time-series data | PostgreSQL 15 |
+| **Caching Layer** | Low-latency hot data access | Redis 7 (LRU eviction) |
+| **Backend API** | REST + WebSocket endpoints | FastAPI (async) |
+| **Frontend** | Live dashboard with visualizations | React 18 + D3.js + TypeScript |
+| **Data Generator** | Mock Twitch events | Python producer |
 
 ---
 
-## Architecture
+## 🏛️ Architecture
 
 ```mermaid
 graph TB
     subgraph "Data Ingestion"
-        Producer[Mock Twitch Producer<br/>Python]
+        Producer[🎭 Mock Twitch Producer<br/>Python]
     end
 
     subgraph "Event Streaming"
-        Kafka[Apache Kafka<br/>Topics: chat, viewer, transactions,<br/>stream_meta, derived.sentiment]
-        Zookeeper[Zookeeper<br/>Coordination]
+        Kafka[📨 Apache Kafka<br/>Topics: chat, viewer, transactions,<br/>stream_meta, derived.sentiment]
+        Zookeeper[🔧 Zookeeper<br/>Coordination]
     end
 
     subgraph "Stream Processing"
-        SparkMaster[Spark Master]
-        SparkWorker[Spark Worker<br/>2G RAM, 2 cores]
-        SparkStreaming[Spark Streaming Job<br/>Windowed Aggregations<br/>Anomaly Detection]
+        SparkMaster[⚡ Spark Master]
+        SparkWorker[⚙️ Spark Worker<br/>2G RAM, 2 cores]
+        SparkStreaming[🔄 Spark Streaming Job<br/>Windowed Aggregations<br/>Anomaly Detection]
     end
 
     subgraph "Data Layer"
-        Postgres[(PostgreSQL<br/>streams, chat_summary_minute,<br/>viewer_timeseries, transactions,<br/>moments)]
-        Redis[(Redis Cache<br/>256MB LRU<br/>Top chatters, recent metrics)]
+        Postgres[(🗄️ PostgreSQL<br/>streams, chat_summary_minute,<br/>viewer_timeseries, transactions,<br/>moments)]
+        Redis[(⚡ Redis Cache<br/>256MB LRU<br/>Top chatters, recent metrics)]
     end
 
     subgraph "API & Frontend"
-        Backend[FastAPI Backend<br/>REST + WebSocket<br/>Port 8000]
-        Frontend[React + D3.js Frontend<br/>Live Dashboard<br/>Port 3000]
+        Backend[🔌 FastAPI Backend<br/>REST + WebSocket<br/>Port 8000]
+        Frontend[🌐 React + D3.js Frontend<br/>Live Dashboard<br/>Port 3000]
     end
 
     Producer -->|Produce Events| Kafka
@@ -113,47 +132,53 @@ graph TB
     style Frontend fill:#e1e1ff
 ```
 
-### Data Flow
+### 🔄 Data Flow
 
-1. **Producer** generates mock Twitch events (chat messages, viewer counts, transactions, stream metadata)
-2. **Kafka** buffers events in topics with 24-hour retention
-3. **Spark Streaming** consumes events, performs windowed aggregations (1-minute windows), detects anomalies using z-score analysis
-4. **PostgreSQL** stores aggregated metrics, detected moments/anomalies, and raw transactions
-5. **Redis** caches frequently accessed data (top chatters, recent viewer counts) with LRU eviction
-6. **Backend** serves REST API endpoints and WebSocket connections for real-time updates
-7. **Frontend** displays interactive D3.js visualizations with live data updates
+1. **Producer** → Generates mock Twitch events (chat, viewers, transactions, metadata)
+2. **Kafka** → Buffers events in topics with 24-hour retention
+3. **Spark Streaming** → Consumes events, performs 1-minute windowed aggregations, detects anomalies using z-score analysis
+4. **PostgreSQL** → Stores aggregated metrics, detected moments/anomalies, and raw transactions
+5. **Redis** → Caches frequently accessed data (top chatters, recent viewer counts)
+6. **Backend** → Serves REST API endpoints and WebSocket connections
+7. **Frontend** → Displays interactive D3.js visualizations with live updates
 
 ---
 
-## Features
+## ✨ Features
 
-### Real-Time Processing
+### ⚡ Real-Time Processing
+
 - **1-minute windowed aggregations** for chat rate, viewer count, transaction volume
 - **Watermarking** for late data handling (10-second threshold)
 - **Anomaly detection** using z-score (threshold: 3.0) for chat spikes and viewer drops
-- **Sentiment analysis** with lexicon-based scoring (placeholder for ML models)
+- **Sentiment analysis** with lexicon-based scoring (ready for ML models)
 
-### API Endpoints
-- `GET /health` - Service health check
-- `GET /streams` - List all tracked streams
-- `GET /streams/{id}/metrics` - Historical metrics for a stream
-- `GET /streams/{id}/moments` - Detected anomalies and moments
-- `WS /live/{stream_id}` - WebSocket for real-time metric updates
+### 🔌 API Endpoints
 
-### Dashboard Visualizations
-- **Viewer Chart** - D3.js line chart with historical and live viewer counts
-- **Chat Rate Chart** - Real-time chat message rate with anomaly highlights
-- **Live Metrics** - Current viewer count, chat rate, transactions per minute
-- **Moments List** - Timeline of detected anomalies with severity indicators
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Service health check |
+| `/streams` | GET | List all tracked streams |
+| `/streams/{id}/metrics` | GET | Historical metrics for a stream |
+| `/streams/{id}/moments` | GET | Detected anomalies and moments |
+| `/live/{stream_id}` | WebSocket | Real-time metric updates |
 
-### Monitoring & Observability
-- **Health checks** for all Docker Compose services
-- **Spark UI** for job monitoring (port 8080)
-- **FastAPI docs** with Swagger UI (port 8000/docs)
+### 📊 Dashboard Visualizations
+
+- **📈 Viewer Chart** - D3.js line chart with historical and live viewer counts
+- **💬 Chat Rate Chart** - Real-time chat message rate with anomaly highlights
+- **📌 Live Metrics** - Current viewer count, chat rate, transactions per minute
+- **🎯 Moments List** - Timeline of detected anomalies with severity indicators
+
+### 🔍 Monitoring & Observability
+
+- ✅ **Health checks** for all Docker Compose services
+- 🖥️ **Spark UI** for job monitoring (port 8080)
+- 📚 **FastAPI docs** with Swagger UI (port 8000/docs)
 
 ---
 
-## Prerequisites
+## 📋 Prerequisites
 
 - **Docker** 24.0+ and **Docker Compose** 2.20+
 - **Git** for cloning the repository
@@ -162,35 +187,41 @@ graph TB
 
 ---
 
-## Quickstart
+## 📦 Services
 
-### 1. Clone and Configure
+<table>
+<tr>
+<td width="50%">
 
-```bash
-# Clone the repository
-git clone <your-repo-url> telemetra
-cd telemetra
+### 🔧 Infrastructure
 
-# Copy environment template
-cp .env.example .env
+| Service | Image | Port | Purpose |
+|---------|-------|------|---------|
+| **Zookeeper** | confluentinc/cp-zookeeper:7.5.0 | 2181 | Kafka coordination |
+| **Kafka** | confluentinc/cp-kafka:7.5.0 | 9092, 29092 | Event streaming |
+| **PostgreSQL** | postgres:15-alpine | 5432 | Data persistence |
+| **Redis** | redis:7-alpine | 6379 | Caching layer |
 
-# (Optional) Edit .env to customize configuration
-# nano .env
-```
+</td>
+<td width="50%">
 
-### 2. Start All Services
+### ⚙️ Processing & Apps
 
-```bash
-# Build and start all containers
-docker compose up --build
+| Service | Technology | Port | Purpose |
+|---------|-----------|------|---------|
+| **Spark Master** | bitnami/spark:3.5.0 | 7077, 8080 | Job coordination |
+| **Spark Worker** | bitnami/spark:3.5.0 | - | Task execution |
+| **Streaming Job** | PySpark | - | Aggregations |
+| **Backend** | FastAPI | 8000 | REST + WebSocket |
+| **Frontend** | React + Vite | 3000 | Dashboard UI |
+| **Producer** | Python | - | Mock events |
 
-# Or run in detached mode
-docker compose up --build -d
-```
+</td>
+</tr>
+</table>
 
-**Startup time**: ~2-3 minutes for all health checks to pass and services to be ready.
-
-### 3. Access the System
+<details>
+<summary><b>📍 Access URLs</b></summary>
 
 | Service | URL | Description |
 |---------|-----|-------------|
@@ -201,109 +232,17 @@ docker compose up --build -d
 | **PostgreSQL** | localhost:5432 | Database (credentials in .env) |
 | **Redis** | localhost:6379 | Cache |
 
-### 4. Verify Data Flow
-
-```bash
-# Check producer is generating events
-docker logs telemetra-producer --tail 50
-
-# Check Spark is processing
-docker logs telemetra-spark-streaming --tail 50
-
-# Check backend is serving
-curl http://localhost:8000/health
-
-# Check metrics are being aggregated
-curl http://localhost:8000/streams
-```
-
-### 5. Stop Services
-
-```bash
-# Stop all containers
-docker compose down
-
-# Stop and remove volumes (WARNING: deletes all data)
-docker compose down -v
-```
+</details>
 
 ---
 
-## Services
+## 📚 Documentation
 
-### Zookeeper
-- **Image**: confluentinc/cp-zookeeper:7.5.0
-- **Port**: 2181
-- **Purpose**: Kafka cluster coordination
+### 🔧 Runbook
 
-### Kafka
-- **Image**: confluentinc/cp-kafka:7.5.0
-- **Ports**: 9092 (internal), 29092 (external)
-- **Topics**: `twitch-events` (auto-created), `chat`, `viewer`, `transactions`, `stream_meta`, `derived.sentiment`
-- **Retention**: 24 hours
-- **Replication**: 1 (single broker for dev)
+<details>
+<summary><b>View Logs</b></summary>
 
-### PostgreSQL
-- **Image**: postgres:15-alpine
-- **Port**: 5432
-- **Database**: telemetra
-- **User**: telemetra_user (see .env)
-- **Schema**: Initialized from `backend/migrations/*.sql`
-- **Tables**: `streams`, `chat_summary_minute`, `viewer_timeseries`, `transactions`, `moments`
-
-### Redis
-- **Image**: redis:7-alpine
-- **Port**: 6379
-- **Max Memory**: 256MB
-- **Eviction**: allkeys-lru (evict least recently used keys)
-- **Purpose**: Cache top chatters, recent metrics
-
-### Spark Master
-- **Image**: bitnami/spark:3.5.0
-- **Ports**: 7077 (master RPC), 8080 (web UI)
-- **Purpose**: Coordinate Spark workers and streaming jobs
-
-### Spark Worker
-- **Image**: bitnami/spark:3.5.0
-- **Resources**: 2GB memory, 2 CPU cores
-- **Purpose**: Execute Spark tasks
-
-### Spark Streaming Job
-- **Build**: Custom image from `spark/Dockerfile`
-- **Script**: `spark_streaming_job.py`
-- **Master**: spark://spark-master:7077
-- **Input**: Kafka topics
-- **Output**: PostgreSQL via JDBC
-- **Features**: Windowed aggregations, watermarking, z-score anomaly detection
-
-### Backend (FastAPI)
-- **Build**: Custom image from `backend/Dockerfile`
-- **Port**: 8000
-- **Framework**: FastAPI with asyncpg, Redis, Kafka consumer
-- **Health Check**: `GET /health`
-- **API Docs**: http://localhost:8000/docs
-
-### Frontend (React)
-- **Build**: Custom image from `frontend/Dockerfile`
-- **Port**: 3000
-- **Framework**: React 18 + TypeScript + Vite
-- **Visualizations**: D3.js charts
-- **Real-time**: WebSocket connection to backend
-
-### Producer (Mock Data)
-- **Build**: Custom image from `producer/Dockerfile`
-- **Script**: `twitch_mock_producer.py`
-- **Interval**: 1 second (configurable via `PRODUCER_INTERVAL`)
-- **Channels**: xqc, shroud, pokimane, ninja, summit1g (configurable via `MOCK_CHANNELS`)
-- **Events**: Generates chat messages, viewer counts, transactions, stream metadata
-
----
-
-## Runbook
-
-### Common Operations
-
-#### View Logs
 ```bash
 # All services
 docker compose logs -f
@@ -317,7 +256,11 @@ docker compose logs -f producer
 docker compose logs --tail 100 kafka
 ```
 
-#### Restart a Service
+</details>
+
+<details>
+<summary><b>Restart Services</b></summary>
+
 ```bash
 # Restart backend only
 docker compose restart backend
@@ -326,7 +269,11 @@ docker compose restart backend
 docker compose up --build -d frontend
 ```
 
-#### Access Service Shell
+</details>
+
+<details>
+<summary><b>Access Service Shells</b></summary>
+
 ```bash
 # PostgreSQL shell
 docker exec -it telemetra-postgres psql -U telemetra_user -d telemetra
@@ -338,7 +285,11 @@ docker exec -it telemetra-backend bash
 docker exec -it telemetra-kafka bash
 ```
 
-#### Check Service Health
+</details>
+
+<details>
+<summary><b>Health Checks</b></summary>
+
 ```bash
 # All health checks
 docker compose ps
@@ -353,7 +304,11 @@ docker exec telemetra-kafka kafka-broker-api-versions --bootstrap-server localho
 docker exec telemetra-postgres pg_isready -U telemetra_user
 ```
 
-#### Kafka Operations
+</details>
+
+<details>
+<summary><b>Kafka Operations</b></summary>
+
 ```bash
 # List topics
 docker exec telemetra-kafka kafka-topics --list --bootstrap-server localhost:9092
@@ -375,7 +330,11 @@ docker exec telemetra-kafka kafka-consumer-groups \
   --group spark-streaming-consumer
 ```
 
-#### Database Operations
+</details>
+
+<details>
+<summary><b>Database Operations</b></summary>
+
 ```bash
 # Connect to PostgreSQL
 docker exec -it telemetra-postgres psql -U telemetra_user -d telemetra
@@ -390,7 +349,11 @@ cat backup.sql | docker exec -i telemetra-postgres psql -U telemetra_user -d tel
 docker exec -i telemetra-postgres psql -U telemetra_user -d telemetra < backend/migrations/001_init_schema.sql
 ```
 
-#### Redis Operations
+</details>
+
+<details>
+<summary><b>Redis Operations</b></summary>
+
 ```bash
 # Connect to Redis CLI
 docker exec -it telemetra-redis redis-cli
@@ -405,36 +368,13 @@ docker exec telemetra-redis redis-cli GET top_chatters:stream_1
 docker exec telemetra-redis redis-cli FLUSHALL
 ```
 
-#### Monitor Resource Usage
-```bash
-# Container stats
-docker stats
+</details>
 
-# Disk usage
-docker system df
+### 📊 Sample Analytics Queries
 
-# Clean up unused resources
-docker system prune -a
-```
+<details>
+<summary><b>Top Chatters (Last Hour)</b></summary>
 
-#### Scale Services
-```bash
-# Scale Spark workers
-docker compose up -d --scale spark-worker=3
-
-# Note: Kafka replication factor is 1, so scaling kafka requires config changes
-```
-
----
-
-## Sample Analytics Queries
-
-Connect to PostgreSQL:
-```bash
-docker exec -it telemetra-postgres psql -U telemetra_user -d telemetra
-```
-
-### Top Chatters (Last Hour)
 ```sql
 SELECT
     username,
@@ -446,7 +386,11 @@ ORDER BY message_count DESC
 LIMIT 10;
 ```
 
-### Top Emotes (Last 24 Hours)
+</details>
+
+<details>
+<summary><b>Top Emotes (Last 24 Hours)</b></summary>
+
 ```sql
 SELECT
     emote,
@@ -460,7 +404,11 @@ ORDER BY usage_count DESC
 LIMIT 20;
 ```
 
-### Viewer Trends (Hourly Average)
+</details>
+
+<details>
+<summary><b>Viewer Trends (Hourly Average)</b></summary>
+
 ```sql
 SELECT
     DATE_TRUNC('hour', timestamp) as hour,
@@ -474,7 +422,11 @@ GROUP BY hour, stream_id
 ORDER BY hour DESC;
 ```
 
-### Detected Anomalies (Recent)
+</details>
+
+<details>
+<summary><b>Detected Anomalies (Recent)</b></summary>
+
 ```sql
 SELECT
     timestamp,
@@ -489,7 +441,11 @@ ORDER BY timestamp DESC
 LIMIT 50;
 ```
 
-### Chat Activity by Hour of Day
+</details>
+
+<details>
+<summary><b>Chat Activity by Hour of Day</b></summary>
+
 ```sql
 SELECT
     EXTRACT(HOUR FROM timestamp) as hour_of_day,
@@ -501,7 +457,11 @@ GROUP BY hour_of_day
 ORDER BY hour_of_day;
 ```
 
-### Revenue by Stream (Transactions)
+</details>
+
+<details>
+<summary><b>Revenue by Stream</b></summary>
+
 ```sql
 SELECT
     stream_id,
@@ -514,7 +474,11 @@ GROUP BY stream_id
 ORDER BY total_revenue DESC;
 ```
 
-### Sentiment Distribution
+</details>
+
+<details>
+<summary><b>Sentiment Distribution</b></summary>
+
 ```sql
 SELECT
     stream_id,
@@ -532,18 +496,20 @@ GROUP BY stream_id, sentiment_category
 ORDER BY stream_id, sentiment_category;
 ```
 
+</details>
+
 ---
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
-### Services Won't Start
+<details>
+<summary><b>Services Won't Start</b></summary>
 
 **Symptom**: `docker compose up` fails or services restart repeatedly
 
 **Solutions**:
 1. Check port availability:
    ```bash
-   # Check if ports are in use
    netstat -an | grep -E '(3000|8000|5432|6379|9092|2181|7077|8080)'
    ```
 2. Check Docker resources (need 8GB+ RAM):
@@ -555,9 +521,11 @@ ORDER BY stream_id, sentiment_category;
    docker compose logs kafka
    docker compose logs postgres
    ```
-4. Increase health check timeout in docker-compose.yml if services are slow to start
 
-### Kafka Connection Errors
+</details>
+
+<details>
+<summary><b>Kafka Connection Errors</b></summary>
 
 **Symptom**: Producer or Spark job can't connect to Kafka
 
@@ -565,23 +533,21 @@ ORDER BY stream_id, sentiment_category;
 1. Wait for Kafka health check to pass:
    ```bash
    docker compose ps kafka
-   # Should show "healthy" status
    ```
 2. Verify Kafka is listening:
    ```bash
    docker exec telemetra-kafka kafka-broker-api-versions --bootstrap-server localhost:9092
    ```
-3. Check Zookeeper is running:
-   ```bash
-   docker compose ps zookeeper
-   ```
-4. Restart Kafka and dependent services:
+3. Restart Kafka and dependent services:
    ```bash
    docker compose restart zookeeper kafka
    docker compose restart spark-streaming producer
    ```
 
-### Database Connection Errors
+</details>
+
+<details>
+<summary><b>Database Connection Errors</b></summary>
 
 **Symptom**: Backend can't connect to PostgreSQL
 
@@ -594,23 +560,17 @@ ORDER BY stream_id, sentiment_category;
    ```bash
    docker exec telemetra-postgres psql -U telemetra_user -l
    ```
-3. Verify credentials in .env match docker-compose.yml:
-   ```bash
-   cat .env | grep POSTGRES
-   ```
-4. Check migrations ran successfully:
-   ```bash
-   docker compose logs postgres | grep -i migration
-   ```
+3. Verify credentials in .env match docker-compose.yml
 
-### Spark Job Not Processing
+</details>
 
-**Symptom**: No data appearing in PostgreSQL, Spark logs show errors
+<details>
+<summary><b>Spark Job Not Processing</b></summary>
+
+**Symptom**: No data appearing in PostgreSQL
 
 **Solutions**:
 1. Check Spark Master UI: http://localhost:8080
-   - Verify worker is connected
-   - Check application status
 2. Review Spark streaming logs:
    ```bash
    docker compose logs spark-streaming --tail 200
@@ -623,35 +583,32 @@ ORDER BY stream_id, sentiment_category;
      --from-beginning \
      --max-messages 5
    ```
-4. Check PostgreSQL JDBC connection from Spark container:
-   ```bash
-   docker exec telemetra-spark-streaming nc -zv postgres 5432
-   ```
 
-### WebSocket Connection Fails
+</details>
 
-**Symptom**: Frontend shows "Disconnected" or can't connect to WebSocket
+<details>
+<summary><b>WebSocket Connection Fails</b></summary>
+
+**Symptom**: Frontend shows "Disconnected"
 
 **Solutions**:
 1. Verify backend is healthy:
    ```bash
    curl http://localhost:8000/health
    ```
-2. Check backend logs for WebSocket errors:
+2. Check backend logs:
    ```bash
    docker compose logs backend | grep -i websocket
    ```
 3. Test WebSocket manually:
    ```bash
-   # Using wscat (npm install -g wscat)
    wscat -c ws://localhost:8000/live/stream_1
    ```
-4. Check CORS configuration in backend environment:
-   ```bash
-   docker compose config | grep CORS
-   ```
 
-### No Data in Dashboard
+</details>
+
+<details>
+<summary><b>No Data in Dashboard</b></summary>
 
 **Symptom**: Frontend loads but shows empty charts
 
@@ -669,11 +626,13 @@ ORDER BY stream_id, sentiment_category;
    ```bash
    curl http://localhost:8000/streams
    ```
-4. Check browser console for frontend errors (F12 → Console)
 
-### High Memory Usage
+</details>
 
-**Symptom**: System runs out of memory, services crash
+<details>
+<summary><b>High Memory Usage</b></summary>
+
+**Symptom**: System runs out of memory
 
 **Solutions**:
 1. Reduce Spark worker memory in docker-compose.yml:
@@ -688,39 +647,46 @@ ORDER BY stream_id, sentiment_category;
    ```yaml
    KAFKA_LOG_RETENTION_HOURS: 12  # Down from 24
    ```
-4. Stop unused services:
-   ```bash
-   docker compose stop spark-master spark-worker
-   # (This will stop Spark processing but other services continue)
-   ```
 
-### Container Build Fails
-
-**Symptom**: `docker compose up --build` fails during image build
-
-**Solutions**:
-1. Check Docker disk space:
-   ```bash
-   docker system df
-   ```
-2. Clean up old images and containers:
-   ```bash
-   docker system prune -a
-   ```
-3. Build services individually to isolate issue:
-   ```bash
-   docker compose build backend
-   docker compose build frontend
-   docker compose build producer
-   docker compose build spark-streaming
-   ```
-4. Check Dockerfile syntax in the failing service directory
+</details>
 
 ---
 
-## Developer Notes
+## 🚧 Roadmap
 
-### Code Locations
+### 🎯 Short-term Enhancements
+- [ ] Unit tests for backend endpoints (pytest)
+- [ ] Integration tests for full data pipeline
+- [ ] GitHub Actions CI/CD workflow
+- [ ] Prometheus + Grafana monitoring dashboards
+- [ ] Alembic database migrations
+- [ ] API rate limiting and authentication
+- [ ] Makefile for common operations
+
+### 🌟 Medium-term Features
+- [ ] Real Twitch API integration (replace mock producer)
+- [ ] ML-based sentiment analysis (replace lexicon fallback)
+- [ ] Advanced anomaly detection (LSTM, isolation forest)
+- [ ] Emote frequency tracking and trending emotes
+- [ ] Clip moment detection (viewership spikes)
+- [ ] Multi-stream comparison dashboard
+- [ ] Historical trend analysis and predictions
+
+### 🏗️ Long-term Infrastructure
+- [ ] Kubernetes manifests for production deployment
+- [ ] Horizontal scaling for Spark workers and backend
+- [ ] Kafka cluster with replication (multi-broker)
+- [ ] Database read replicas for analytics queries
+- [ ] CDN integration for frontend
+- [ ] Apache Flink as alternative to Spark
+- [ ] GraphQL API layer for complex queries
+- [ ] Real-time alerting (PagerDuty, Slack webhooks)
+
+---
+
+## 💻 Developer Notes
+
+### 📂 Code Locations
 
 **Core Data Pipeline**:
 - Producer: `producer/twitch_mock_producer.py` or `data_pipeline/producer/twitch_mock_producer.py`
@@ -754,69 +720,48 @@ ORDER BY stream_id, sentiment_category;
 - Docker Compose: `docker-compose.yml` (root level)
 - Environment template: `.env.example`
 
-### Future Stretch Tasks
+### 🛠️ Technology Choices
 
-**Short-term Enhancements**:
-1. Add unit tests for backend endpoints (pytest)
-2. Add integration tests for full data pipeline
-3. Create GitHub Actions CI/CD workflow
-4. Add Prometheus + Grafana monitoring dashboards
-5. Implement proper Alembic database migrations
-6. Add API rate limiting and authentication
-7. Create Makefile for common operations
+| Technology | Reason |
+|------------|--------|
+| **Kafka** | High-throughput event streaming, decouples producers/consumers, supports replay |
+| **Spark Streaming** | Native Kafka integration, windowed aggregations, stateful processing, JDBC sinks |
+| **PostgreSQL** | Structured data, ACID guarantees, analytical queries, widely supported |
+| **Redis** | Sub-millisecond latency for hot data, LRU eviction for bounded memory |
+| **FastAPI** | Async support, WebSocket, auto-generated docs, high performance |
+| **React + D3** | Component-based UI, rich visualizations, real-time updates via WebSocket |
 
-**Medium-term Features**:
-1. Real Twitch API integration (replace mock producer)
-2. ML-based sentiment analysis (replace lexicon fallback)
-   - Placeholder code: `spark/streaming_job.py:300-350`
-3. Advanced anomaly detection (LSTM, isolation forest)
-   - Placeholder code: `spark/streaming_job.py:200-250`
-4. Emote frequency tracking and trending emotes
-5. Clip moment detection (viewership spikes correlating with clips)
-6. Multi-stream comparison dashboard
-7. Historical trend analysis and predictions
+---
 
-**Long-term Infrastructure**:
-1. Kubernetes manifests for production deployment (see `deploy/k8s/`)
-2. Horizontal scaling for Spark workers and backend
-3. Kafka cluster with replication (multi-broker)
-4. Database read replicas for analytics queries
-5. CDN integration for frontend
-6. Apache Flink as alternative to Spark
-7. GraphQL API layer for complex queries
-8. Real-time alerting (PagerDuty, Slack webhooks)
+## 🤝 Contributing
 
-### Technology Choices
+We welcome contributions! Here's how to get started:
 
-**Why Kafka**: High-throughput event streaming, decouples producers/consumers, supports replay
+1. 🍴 Fork the repository
+2. 🌿 Create feature branch: `git checkout -b feature/your-feature`
+3. 🎨 Follow existing code style (Black for Python, Prettier for TypeScript)
+4. ✅ Add tests for new features
+5. 📝 Update documentation
+6. 🚀 Submit pull request
 
-**Why Spark Streaming**: Native Kafka integration, windowed aggregations, stateful processing, JDBC sinks
+---
 
-**Why PostgreSQL**: Structured data, ACID guarantees, analytical queries, widely supported
-
-**Why Redis**: Sub-millisecond latency for hot data, LRU eviction for bounded memory
-
-**Why FastAPI**: Async support, WebSocket, auto-generated docs, high performance
-
-**Why React + D3**: Component-based UI, rich visualizations, real-time updates via WebSocket
-
-### Contributing
-
-1. Fork the repository
-2. Create feature branch: `git checkout -b feature/your-feature`
-3. Follow existing code style (Black for Python, Prettier for TypeScript)
-4. Add tests for new features
-5. Update documentation
-6. Submit pull request
-
-### License
+## 📄 License
 
 [Specify your license here]
 
-### Contact
+---
+
+## 📧 Contact
 
 [Add contact information or links]
 
 ---
 
+<div align="center">
+
 **Built with ❤️ for real-time data enthusiasts**
+
+⭐ Star this repo if you find it helpful!
+
+</div>
