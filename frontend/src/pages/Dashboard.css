@@ -1,0 +1,140 @@
+.dashboard {
+  min-height: 100vh;
+  padding: 20px;
+  background: #0e0e10;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: #18181b;
+  border-radius: 8px;
+}
+
+.dashboard-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  color: #9146FF;
+}
+
+.subtitle {
+  color: #adadb8;
+  font-size: 1.1rem;
+}
+
+.stream-selector {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.stream-selector label {
+  font-weight: 600;
+  color: #efeff1;
+}
+
+.stream-selector select {
+  padding: 8px 12px;
+  font-size: 1rem;
+  border: 1px solid #464649;
+  border-radius: 4px;
+  background: #18181b;
+  color: #efeff1;
+  cursor: pointer;
+}
+
+.stream-selector select:hover {
+  border-color: #9146FF;
+}
+
+.connection-status {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.connection-status.connected {
+  background: rgba(0, 242, 234, 0.1);
+  color: #00F2EA;
+}
+
+.connection-status.connecting {
+  background: rgba(255, 186, 0, 0.1);
+  color: #FFBA00;
+}
+
+.connection-status.disconnected {
+  background: rgba(235, 64, 52, 0.1);
+  color: #EB4034;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.metric-card {
+  background: #18181b;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #464649;
+}
+
+.metric-card.large {
+  grid-column: span 2;
+}
+
+.metric-card h3 {
+  margin-bottom: 15px;
+  color: #efeff1;
+  font-size: 1.2rem;
+  border-bottom: 2px solid #9146FF;
+  padding-bottom: 10px;
+}
+
+.stats-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: #0e0e10;
+  border-radius: 4px;
+}
+
+.stat-label {
+  color: #adadb8;
+  font-size: 0.95rem;
+}
+
+.stat-value {
+  color: #00F2EA;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+@media (max-width: 768px) {
+  .metric-card.large {
+    grid-column: span 1;
+  }
+
+  .dashboard-header h1 {
+    font-size: 2rem;
+  }
+
+  .stream-selector {
+    flex-direction: column;
+  }
+}

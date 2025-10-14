@@ -1,0 +1,18 @@
+.chart-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.chart-wrapper svg {
+  display: block;
+}
+
+/* Override D3 default styles */
+.chart-wrapper .domain,
+.chart-wrapper .tick line {
+  stroke: #26262c;
+}
+
+.chart-wrapper .tick text {
+  fill: #adadb8;
+}

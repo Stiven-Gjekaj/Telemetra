@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(if [ -f \"C:/Users/stive/Desktop/stuff/code/Telemetra/frontend/vite.config.ts\" ])",
+      "Bash(then echo \"vite.config.ts exists and will be removed\")",
+      "Bash(else echo \"vite.config.ts does not exist - no conflict to resolve\")",
+      "Bash(fi)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
