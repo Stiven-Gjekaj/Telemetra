@@ -735,7 +735,7 @@ ORDER BY stream_id, sentiment_category;
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how to get started:
+I welcome contributions! Here's how to get started:
 
 1. 🍴 Fork the repository
 2. 🌿 Create feature branch: `git checkout -b feature/your-feature`
@@ -746,21 +746,7 @@ We welcome contributions! Here's how to get started:
 
 ---
 
-## 📄 License
-
-[Specify your license here]
-
----
-
-## 📧 Contact
-
-[Add contact information or links]
-
----
-
 <div align="center">
-
-**Built with ❤️ for real-time data enthusiasts**
 
 ⭐ Star this repo if you find it helpful!
 
