@@ -1,0 +1,577 @@
+version: "3.9"
+
+services:
+  # Zookeeper - Required by Kafka for coordination
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: telemetra_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 5
+      ZOOKEEPER_INIT_LIMIT: 10
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - telemetra_network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    profiles:
+      - full
+      - dev
+
+  # Kafka broker - Message queue for event streaming
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: telemetra_kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: ${KAFKA_LOG_RETENTION_HOURS:-168}
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - telemetra_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    profiles:
+      - full
+      - dev
+
+  # Kafka UI - Optional: web interface for monitoring topics
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: telemetra_kafka_ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: telemetra
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    ports:
+      - "8888:8080"
+    networks:
+      - telemetra_network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 256M
+        reservations:
+          cpus: "0.15"
+          memory: 128M
+    profiles:
+      - full
+
+  # PostgreSQL - Primary database for aggregates and moments
+  postgres:
+    image: postgres:15-alpine
+    container_name: telemetra_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-telemetra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-telemetra_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-telemetra}
+      POSTGRES_INITDB_ARGS: "-c log_statement=all -c log_duration=on"
+    ports:
+      - "5432:5432"
+    volumes:
+      - telemetra_postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-telemetra} -d ${POSTGRES_DB:-telemetra}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - telemetra_network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    profiles:
+      - full
+      - dev
+
+  # Redis - Cache for latest metrics (viewer count, chat rate, etc.)
+  redis:
+    image: redis:7-alpine
+    container_name: telemetra_redis
+    command: redis-server --appendonly yes --appendfsync everysec
+    ports:
+      - "6379:6379"
+    volumes:
+      - telemetra_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - telemetra_network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    profiles:
+      - full
+      - dev
+
+  # Spark Master - Distributed computing for stream aggregations
+  spark-master:
+    image: bitnami/spark:3.5.0
+    container_name: telemetra_spark_master
+    environment:
+      SPARK_MODE: master
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    networks:
+      - telemetra_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1.5G
+        reservations:
+          cpus: "0.5"
+          memory: 1G
+    profiles:
+      - full
+      - dev
+
+  # Spark Worker - Worker node for distributed processing
+  spark-worker:
+    image: bitnami/spark:3.5.0
+    container_name: telemetra_spark_worker
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    environment:
+      SPARK_MODE: worker
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_MEMORY: 1G
+      SPARK_WORKER_CORES: 2
+      SPARK_RPC_AUTHENTICATION_ENABLED: "no"
+      SPARK_RPC_ENCRYPTION_ENABLED: "no"
+      SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED: "no"
+      SPARK_SSL_ENABLED: "no"
+    ports:
+      - "8081:8081"
+    networks:
+      - telemetra_network
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "1.0"
+          memory: 1.5G
+    profiles:
+      - full
+      - dev
+
+  # Mock Producer - Generates test stream data to Kafka
+  mock-producer:
+    build:
+      context: ../
+      dockerfile: ./data_pipeline/producer/Dockerfile
+    container_name: telemetra_mock_producer
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_TOPIC_CHAT: ${KAFKA_TOPIC_CHAT:-telemetra.events.chat}
+      KAFKA_TOPIC_VIEWER: ${KAFKA_TOPIC_VIEWER:-telemetra.events.viewer}
+      KAFKA_TOPIC_TRANSACTIONS: ${KAFKA_TOPIC_TRANSACTIONS:-telemetra.events.transactions}
+      KAFKA_TOPIC_STREAM_META: ${KAFKA_TOPIC_STREAM_META:-telemetra.events.stream_meta}
+      PRODUCER_RATE_PER_SEC: ${PRODUCER_RATE_PER_SEC:-10}
+      PRODUCER_CHANNELS: ${PRODUCER_CHANNELS:-demo_stream}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    networks:
+      - telemetra_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    profiles:
+      - full
+      - dev
+
+  # Spark Streaming Job - Processes Kafka events and writes to Postgres
+  spark-streaming-job:
+    build:
+      context: ../
+      dockerfile: ./data_pipeline/spark/Dockerfile
+    container_name: telemetra_spark_streaming
+    depends_on:
+      spark-master:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      SPARK_MASTER: spark://spark-master:7077
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_TOPIC_CHAT: ${KAFKA_TOPIC_CHAT:-telemetra.events.chat}
+      KAFKA_TOPIC_VIEWER: ${KAFKA_TOPIC_VIEWER:-telemetra.events.viewer}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-telemetra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-telemetra_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-telemetra}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    networks:
+      - telemetra_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "1.0"
+          memory: 1.5G
+    profiles:
+      - full
+      - dev
+
+  # Backend API - FastAPI application
+  backend:
+    build:
+      context: ../
+      dockerfile: ./backend/Dockerfile
+    container_name: telemetra_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-telemetra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-telemetra_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-telemetra}
+      REDIS_URL: redis://redis:6379
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DEBUG: ${DEBUG:-false}
+      API_TITLE: ${API_TITLE:-Telemetra API}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - telemetra_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    profiles:
+      - full
+      - dev
+
+  # Frontend - React/Vite application
+  frontend:
+    build:
+      context: ../
+      dockerfile: ./frontend/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8000}
+    container_name: telemetra_frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8000}
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - telemetra_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    profiles:
+      - full
+      - dev
+
+  # pgAdmin - PostgreSQL management UI (optional)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: telemetra_pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@telemetra.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    networks:
+      - telemetra_network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 256M
+        reservations:
+          cpus: "0.15"
+          memory: 128M
+    profiles:
+      - full
+
+  # Prometheus - Metrics collection and storage
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: telemetra_prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - telemetra_prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - telemetra_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    profiles:
+      - full
+      - dev
+
+  # Grafana - Metrics visualization and dashboards
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: telemetra_grafana
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3001
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - telemetra_grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+    ports:
+      - "3001:3000"
+    networks:
+      - telemetra_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    profiles:
+      - full
+      - dev
+
+  # Redis Exporter - Exports Redis metrics to Prometheus
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0-alpine
+    container_name: telemetra_redis_exporter
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    ports:
+      - "9121:9121"
+    networks:
+      - telemetra_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 128M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    profiles:
+      - full
+      - dev
+
+  # PostgreSQL Exporter - Exports PostgreSQL metrics to Prometheus
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: telemetra_postgres_exporter
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-telemetra}:${POSTGRES_PASSWORD:-telemetra_dev_password}@postgres:5432/${POSTGRES_DB:-telemetra}?sslmode=disable
+    ports:
+      - "9187:9187"
+    networks:
+      - telemetra_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 128M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    profiles:
+      - full
+      - dev
+
+  # Kafka JMX Exporter - Exports Kafka JMX metrics to Prometheus
+  kafka-jmx-exporter:
+    image: sscaling/jmx-prometheus-exporter:0.20.0
+    container_name: telemetra_kafka_jmx_exporter
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SERVICE_PORT: 9404
+    command:
+      - "9404"
+      - "/etc/jmx-exporter/kafka.yml"
+    volumes:
+      - ./jmx-exporter-config.yml:/etc/jmx-exporter/kafka.yml
+    ports:
+      - "9404:9404"
+    networks:
+      - telemetra_network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 128M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    profiles:
+      - full
+      - dev
+
+networks:
+  telemetra_network:
+    driver: bridge
+
+volumes:
+  telemetra_postgres_data:
+    driver: local
+  telemetra_redis_data:
+    driver: local
+  telemetra_prometheus_data:
+    driver: local
+  telemetra_grafana_data:
+    driver: local

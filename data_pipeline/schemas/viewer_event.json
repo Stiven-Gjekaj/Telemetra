@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ViewerEvent",
+  "description": "Schema for viewer count update events",
+  "type": "object",
+  "required": ["event_id", "timestamp", "stream_id", "viewer_count"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "Unique identifier for this event",
+      "pattern": "^viewer_[0-9]+_[0-9]+$"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp in UTC",
+      "format": "date-time"
+    },
+    "stream_id": {
+      "type": "string",
+      "description": "Identifier for the stream/channel"
+    },
+    "viewer_count": {
+      "type": "integer",
+      "description": "Current number of viewers",
+      "minimum": 0
+    },
+    "unique_viewers": {
+      "type": "integer",
+      "description": "Total unique viewers in this session",
+      "minimum": 0
+    },
+    "peak_viewers": {
+      "type": "integer",
+      "description": "Peak viewers for this stream",
+      "minimum": 0
+    }
+  }
+}

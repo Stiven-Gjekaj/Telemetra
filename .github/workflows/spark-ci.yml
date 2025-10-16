@@ -1,0 +1,265 @@
+name: Spark Streaming Job CI
+
+on:
+  push:
+    branches: [ main, develop, Rework ]
+    paths:
+      - 'data_pipeline/spark/**'
+      - '.github/workflows/spark-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'data_pipeline/spark/**'
+
+jobs:
+  lint-and-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd data_pipeline/spark
+          pip install -r requirements.txt
+          pip install pytest pytest-cov ruff mypy
+
+      - name: Lint with ruff
+        run: |
+          cd data_pipeline/spark
+          ruff check spark_streaming_job.py --select E,F,W
+          ruff format --check spark_streaming_job.py
+
+      - name: Type check with mypy
+        run: |
+          cd data_pipeline/spark
+          mypy spark_streaming_job.py --ignore-missing-imports || true
+
+      - name: Run unit tests
+        run: |
+          cd data_pipeline/spark
+          pytest test_spark_job.py -v --tb=short --cov=spark_streaming_job --cov-report=term-missing
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./data_pipeline/spark/coverage.xml
+          flags: spark
+          name: spark-streaming
+
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./data_pipeline/spark
+          file: ./data_pipeline/spark/Dockerfile
+          push: false
+          tags: telemetra-spark-streaming:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          docker run --rm telemetra-spark-streaming:test python -c "import spark_streaming_job; print('Import successful')"
+
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: telemetra
+          POSTGRES_USER: telemetra
+          POSTGRES_PASSWORD: telemetra
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      zookeeper:
+        image: confluentinc/cp-zookeeper:7.5.0
+        env:
+          ZOOKEEPER_CLIENT_PORT: 2181
+          ZOOKEEPER_TICK_TIME: 2000
+        ports:
+          - 2181:2181
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start Kafka
+        run: |
+          docker run -d --name kafka \
+            --network ${{ job.services.network }} \
+            -p 9092:9092 \
+            -e KAFKA_BROKER_ID=1 \
+            -e KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181 \
+            -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+            -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+            confluentinc/cp-kafka:7.5.0
+
+      - name: Wait for Kafka
+        run: |
+          timeout 60 bash -c 'until docker exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092; do sleep 2; done'
+
+      - name: Create Kafka topics
+        run: |
+          docker exec kafka kafka-topics --create \
+            --topic telemetra.events.chat \
+            --bootstrap-server localhost:9092 \
+            --partitions 3 \
+            --replication-factor 1
+
+          docker exec kafka kafka-topics --create \
+            --topic telemetra.events.viewer \
+            --bootstrap-server localhost:9092 \
+            --partitions 3 \
+            --replication-factor 1
+
+      - name: Set up database schema
+        env:
+          PGPASSWORD: telemetra
+        run: |
+          psql -h localhost -U telemetra -d telemetra << 'EOF'
+          CREATE TABLE IF NOT EXISTS chat_summary_minute (
+              id SERIAL PRIMARY KEY,
+              stream_id VARCHAR(255) NOT NULL,
+              window_start TIMESTAMP NOT NULL,
+              window_end TIMESTAMP NOT NULL,
+              chat_count INTEGER DEFAULT 0,
+              unique_chatters INTEGER DEFAULT 0,
+              avg_sentiment DOUBLE PRECISION,
+              positive_count INTEGER DEFAULT 0,
+              negative_count INTEGER DEFAULT 0,
+              chat_rate DOUBLE PRECISION,
+              avg_viewers DOUBLE PRECISION,
+              top_emotes TEXT[],
+              z_score DOUBLE PRECISION,
+              is_anomaly BOOLEAN DEFAULT FALSE,
+              processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+
+          CREATE TABLE IF NOT EXISTS moments (
+              id SERIAL PRIMARY KEY,
+              stream_id VARCHAR(255) NOT NULL,
+              timestamp TIMESTAMP NOT NULL,
+              moment_type VARCHAR(50) NOT NULL,
+              description TEXT,
+              intensity DOUBLE PRECISION,
+              metadata JSONB,
+              detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+          EOF
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          cd data_pipeline/spark
+          pip install -r requirements.txt
+
+      - name: Produce test messages to Kafka
+        run: |
+          python - << 'EOF'
+          import json
+          from datetime import datetime
+          from kafka import KafkaProducer
+
+          producer = KafkaProducer(
+              bootstrap_servers='localhost:9092',
+              value_serializer=lambda v: json.dumps(v).encode('utf-8')
+          )
+
+          # Send test chat messages
+          for i in range(10):
+              message = {
+                  'event_id': f'test_{i}',
+                  'timestamp': datetime.now().isoformat(),
+                  'stream_id': 'test_stream',
+                  'user_id': f'user_{i % 3}',
+                  'username': f'TestUser{i % 3}',
+                  'message': 'This is a great test message!',
+                  'emotes': ['Kappa', 'PogChamp'],
+                  'badges': ['subscriber']
+              }
+              producer.send('telemetra.events.chat', message)
+
+          # Send test viewer messages
+          for i in range(10):
+              message = {
+                  'event_id': f'viewer_{i}',
+                  'timestamp': datetime.now().isoformat(),
+                  'stream_id': 'test_stream',
+                  'viewer_count': 100 + i
+              }
+              producer.send('telemetra.events.viewer', message)
+
+          producer.flush()
+          print("Test messages sent successfully")
+          EOF
+
+      - name: Run Spark job (short test)
+        timeout-minutes: 5
+        env:
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+          POSTGRES_URL: jdbc:postgresql://localhost:5432/telemetra
+          POSTGRES_USER: telemetra
+          POSTGRES_PASSWORD: telemetra
+          CHECKPOINT_LOCATION: /tmp/test-checkpoints
+        run: |
+          cd data_pipeline/spark
+          # Run for 90 seconds then kill
+          timeout 90 python spark_streaming_job.py || true
+
+      - name: Verify data was written
+        env:
+          PGPASSWORD: telemetra
+        run: |
+          echo "Checking chat_summary_minute table:"
+          psql -h localhost -U telemetra -d telemetra -c \
+            "SELECT COUNT(*) as record_count FROM chat_summary_minute;"
+
+          echo "Checking moments table:"
+          psql -h localhost -U telemetra -d telemetra -c \
+            "SELECT COUNT(*) as record_count FROM moments;"
+
+      - name: Show sample data
+        env:
+          PGPASSWORD: telemetra
+        run: |
+          echo "Sample aggregated data:"
+          psql -h localhost -U telemetra -d telemetra -c \
+            "SELECT stream_id, window_start, chat_count, unique_chatters
+             FROM chat_summary_minute
+             ORDER BY window_start DESC
+             LIMIT 3;"

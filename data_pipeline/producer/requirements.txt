@@ -1,0 +1,8 @@
+# Kafka client library (modern, high-performance)
+confluent-kafka>=2.3.0
+
+# JSON schema validation (optional, for development/testing)
+jsonschema>=4.20.0
+
+# For better datetime handling
+python-dateutil>=2.8.2

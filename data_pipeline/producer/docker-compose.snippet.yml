@@ -1,0 +1,60 @@
+# Docker Compose snippet for the Twitch Mock Producer
+# Include this in your main infra/docker-compose.yml
+
+services:
+  twitch-producer:
+    build:
+      context: ../../data_pipeline/producer
+      dockerfile: Dockerfile
+    container_name: telemetra-twitch-producer
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      # Kafka configuration
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+      # Producer configuration
+      CHANNELS: demo_stream,gaming_channel,talk_show
+      RATE_PER_SEC: 20
+      MESSAGE_VARIANTS: 100
+
+      # Feature flags
+      PRODUCE_CHAT: "true"
+      PRODUCE_VIEWER: "true"
+      PRODUCE_TRANSACTIONS: "true"
+      PRODUCE_STREAM_META: "true"
+
+      # Logging
+      LOG_LEVEL: INFO
+
+    networks:
+      - telemetra-network
+
+    # Resource limits (adjust based on load)
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+    # Health check (checks if process is running)
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "twitch_mock_producer.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+    labels:
+      - "com.telemetra.service=producer"
+      - "com.telemetra.component=data-pipeline"
+
+# Network configuration (ensure this exists in your main compose file)
+networks:
+  telemetra-network:
+    driver: bridge

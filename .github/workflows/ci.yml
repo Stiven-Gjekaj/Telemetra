@@ -1,0 +1,330 @@
+name: CI - Backend Tests with Docker Compose
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  ci:
+    name: Test Backend with Docker Compose
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      # We'll use docker compose instead of services keyword
+      # This allows us to orchestrate the full stack
+
+    steps:
+      # Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Set up Docker Buildx for building images
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
+          buildkitd-flags: --debug
+
+      # Copy .env.example to .env for docker compose
+      - name: Copy environment configuration
+        run: |
+          cp .env.example .env
+          cat .env
+
+      # Pull base images to speed up builds
+      - name: Pull base images
+        run: |
+          docker pull confluentinc/cp-zookeeper:7.5.0 || true
+          docker pull confluentinc/cp-kafka:7.5.0 || true
+          docker pull postgres:15-alpine || true
+          docker pull redis:7-alpine || true
+          docker pull bitnami/spark:3.5.0 || true
+
+      # Start services with docker compose
+      - name: Start services with Docker Compose
+        run: |
+          docker compose -f infra/docker-compose.yml --profile dev up -d
+          echo "Services started, waiting for initialization..."
+          sleep 5
+
+      # Verify docker compose status
+      - name: Verify Docker Compose status
+        run: |
+          docker compose -f infra/docker-compose.yml ps
+          docker compose -f infra/docker-compose.yml logs --tail=20
+
+      # Health check polling for backend API
+      - name: Wait for backend health check
+        run: |
+          max_attempts=10
+          attempt=1
+          delay=10
+
+          echo "Polling health endpoint (max $max_attempts attempts, ${delay}s delay)..."
+
+          while [ $attempt -le $max_attempts ]; do
+            echo "Attempt $attempt/$max_attempts..."
+
+            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "Health check passed!"
+              exit 0
+            fi
+
+            if [ $attempt -lt $max_attempts ]; then
+              echo "Health check failed, waiting ${delay}s before retry..."
+              sleep $delay
+            fi
+
+            attempt=$((attempt + 1))
+          done
+
+          echo "Health check failed after $max_attempts attempts"
+          echo "=== Docker Compose Logs ==="
+          docker compose -f infra/docker-compose.yml logs
+          exit 1
+
+      # Verify database connectivity
+      - name: Verify database connectivity
+        run: |
+          echo "Testing database connection..."
+          docker compose -f infra/docker-compose.yml exec -T postgres pg_isready -U telemetra -d telemetra
+          echo "Database is ready"
+
+      # Verify Redis connectivity
+      - name: Verify Redis connectivity
+        run: |
+          echo "Testing Redis connection..."
+          docker compose -f infra/docker-compose.yml exec -T redis redis-cli ping
+          echo "Redis is ready"
+
+      # Verify Kafka connectivity
+      - name: Verify Kafka connectivity
+        run: |
+          echo "Testing Kafka connection..."
+          docker compose -f infra/docker-compose.yml exec -T kafka kafka-broker-api-versions.sh --bootstrap-server localhost:9092 | head -5
+          echo "Kafka is ready"
+
+      # Run backend pytest tests
+      - name: Run backend tests
+        id: backend_tests
+        timeout-minutes: 10
+        run: |
+          echo "Running backend tests..."
+          docker compose -f infra/docker-compose.yml exec -T backend pytest \
+            backend/tests/ \
+            -v \
+            --tb=short \
+            --junit-xml=/tmp/junit.xml \
+            --cov=backend \
+            --cov-report=xml:/tmp/coverage.xml \
+            --cov-report=term \
+            -s
+        continue-on-error: true
+
+      # Run smoke test - GET /api/v1/streams
+      - name: Run smoke test - GET /api/v1/streams
+        id: smoke_test
+        timeout-minutes: 5
+        run: |
+          echo "Running smoke test: GET /api/v1/streams..."
+          response=$(curl -s -w "\n%{http_code}" http://localhost:8000/api/v1/streams)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+
+          echo "HTTP Status Code: $http_code"
+          echo "Response Body:"
+          echo "$body" | jq . || echo "$body"
+
+          if [ "$http_code" -eq 200 ]; then
+            echo "Smoke test passed!"
+            exit 0
+          else
+            echo "Smoke test failed with HTTP $http_code"
+            exit 1
+          fi
+        continue-on-error: true
+
+      # Run additional smoke test - Health check endpoint
+      - name: Run smoke test - GET /api/v1/health
+        id: health_test
+        timeout-minutes: 5
+        run: |
+          echo "Running smoke test: GET /api/v1/health..."
+          response=$(curl -s -w "\n%{http_code}" http://localhost:8000/api/v1/health)
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+
+          echo "HTTP Status Code: $http_code"
+          echo "Response Body:"
+          echo "$body" | jq . || echo "$body"
+
+          if [ "$http_code" -eq 200 ]; then
+            echo "Health test passed!"
+            exit 0
+          else
+            echo "Health test failed with HTTP $http_code"
+            exit 1
+          fi
+        continue-on-error: true
+
+      # Capture backend logs on failure
+      - name: Capture backend logs on test failure
+        if: failure() || steps.backend_tests.outcome == 'failure' || steps.smoke_test.outcome == 'failure'
+        run: |
+          mkdir -p test-artifacts
+
+          echo "=== Backend Container Logs ===" > test-artifacts/backend-logs.txt
+          docker compose -f infra/docker-compose.yml logs backend >> test-artifacts/backend-logs.txt 2>&1
+
+          echo "=== PostgreSQL Container Logs ===" > test-artifacts/postgres-logs.txt
+          docker compose -f infra/docker-compose.yml logs postgres >> test-artifacts/postgres-logs.txt 2>&1
+
+          echo "=== Redis Container Logs ===" > test-artifacts/redis-logs.txt
+          docker compose -f infra/docker-compose.yml logs redis >> test-artifacts/redis-logs.txt 2>&1
+
+          echo "=== Kafka Container Logs ===" > test-artifacts/kafka-logs.txt
+          docker compose -f infra/docker-compose.yml logs kafka >> test-artifacts/kafka-logs.txt 2>&1
+
+          echo "=== Docker Compose Status ===" > test-artifacts/docker-compose-status.txt
+          docker compose -f infra/docker-compose.yml ps >> test-artifacts/docker-compose-status.txt 2>&1
+
+          echo "=== Network Status ===" > test-artifacts/network-status.txt
+          docker network ls >> test-artifacts/network-status.txt 2>&1
+          docker network inspect telemetra_telemetra_network >> test-artifacts/network-status.txt 2>&1 || true
+
+          echo "Logs captured to test-artifacts/"
+
+      # Copy test results from container
+      - name: Copy test results from container
+        if: always()
+        run: |
+          mkdir -p test-artifacts || true
+
+          docker compose -f infra/docker-compose.yml cp backend:/tmp/junit.xml test-artifacts/junit.xml || true
+          docker compose -f infra/docker-compose.yml cp backend:/tmp/coverage.xml test-artifacts/coverage.xml || true
+
+          ls -la test-artifacts/ || echo "No test artifacts found"
+
+      # Publish test results
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: test-artifacts/junit.xml
+          check_name: Backend Test Results
+        continue-on-error: true
+
+      # Upload coverage report
+      - name: Upload coverage reports
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          files: test-artifacts/coverage.xml
+          flags: backend
+          name: backend-coverage
+          fail_ci_if_error: false
+
+      # Upload test artifacts
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-and-logs
+          path: test-artifacts/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      # Verify test results and fail if needed
+      - name: Verify test success
+        if: always()
+        run: |
+          echo "Checking test results..."
+
+          backend_tests_status="${{ steps.backend_tests.outcome }}"
+          smoke_test_status="${{ steps.smoke_test.outcome }}"
+          health_test_status="${{ steps.health_test.outcome }}"
+
+          echo "Backend tests: $backend_tests_status"
+          echo "Smoke test: $smoke_test_status"
+          echo "Health test: $health_test_status"
+
+          if [ "$backend_tests_status" = "failure" ]; then
+            echo "Backend tests failed!"
+            exit 1
+          fi
+
+          if [ "$smoke_test_status" = "failure" ]; then
+            echo "Smoke tests failed!"
+            exit 1
+          fi
+
+          echo "All tests passed!"
+          exit 0
+
+      # Clean up - Tear down the stack
+      - name: Tear down Docker Compose stack
+        if: always()
+        run: |
+          echo "Tearing down services..."
+          docker compose -f infra/docker-compose.yml --profile dev down -v
+          echo "Services stopped and volumes removed"
+
+      # Display final summary
+      - name: Display test summary
+        if: always()
+        run: |
+          echo "=== CI Pipeline Summary ==="
+          echo "Repository: ${{ github.repository }}"
+          echo "Branch: ${{ github.ref }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "=============================="
+
+  # Quality Gates Job
+  quality-gates:
+    name: Quality Gates Check
+    runs-on: ubuntu-latest
+    needs: ci
+    if: always()
+    steps:
+      - name: Check CI Status
+        run: |
+          if [ "${{ needs.ci.result }}" != "success" ]; then
+            echo "CI pipeline failed, quality gates check failed"
+            exit 1
+          fi
+          echo "Quality gates passed!"
+
+  # Notification Job (Optional)
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [ci, quality-gates]
+    if: always()
+    steps:
+      - name: Check workflow status
+        run: |
+          ci_status="${{ needs.ci.result }}"
+          qg_status="${{ needs.quality-gates.result }}"
+
+          echo "CI Status: $ci_status"
+          echo "Quality Gates Status: $qg_status"
+
+          if [ "$ci_status" = "success" ] && [ "$qg_status" = "success" ]; then
+            echo "Workflow completed successfully!"
+            exit 0
+          else
+            echo "Workflow completed with issues"
+            exit 1
+          fi

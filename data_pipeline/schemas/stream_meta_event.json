@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StreamMetaEvent",
+  "description": "Schema for stream metadata change events",
+  "type": "object",
+  "required": ["event_id", "timestamp", "stream_id", "event_type"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "Unique identifier for this event",
+      "pattern": "^meta_[0-9]+_[0-9]+$"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp in UTC",
+      "format": "date-time"
+    },
+    "stream_id": {
+      "type": "string",
+      "description": "Identifier for the stream/channel"
+    },
+    "event_type": {
+      "type": "string",
+      "description": "Type of metadata event",
+      "enum": ["title_change", "category_change", "stream_start", "stream_end"]
+    },
+    "new_title": {
+      "type": "string",
+      "description": "New stream title (for title_change events)"
+    },
+    "new_category": {
+      "type": "string",
+      "description": "New stream category (for category_change events)"
+    },
+    "started_at": {
+      "type": "string",
+      "description": "Stream start time (for stream_start events)",
+      "format": "date-time"
+    },
+    "ended_at": {
+      "type": "string",
+      "description": "Stream end time (for stream_end events)",
+      "format": "date-time"
+    },
+    "duration_minutes": {
+      "type": "integer",
+      "description": "Stream duration in minutes (for stream_end events)",
+      "minimum": 0
+    }
+  }
+}

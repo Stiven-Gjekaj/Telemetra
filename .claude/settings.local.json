@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(tree:*)",
+      "Bash(awk:*)",
+      "Bash(while read file)",
+      "Bash(done)",
+      "Bash(python3:*)",
+      "Bash(cat:*)",
+      "Bash(docker:*)",
+      "Bash(docker compose:*)",
+      "Bash(git remote:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

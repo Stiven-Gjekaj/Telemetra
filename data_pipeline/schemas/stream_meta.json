@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://telemetra.dev/schemas/stream_meta.json",
+  "title": "StreamMetadata",
+  "description": "Schema for stream lifecycle and metadata events",
+  "type": "object",
+  "required": ["event_id", "channel", "event_type", "timestamp"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "Unique identifier for this metadata event",
+      "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
+    },
+    "channel": {
+      "type": "string",
+      "description": "Channel/stream name",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "event_type": {
+      "type": "string",
+      "description": "Type of metadata event",
+      "enum": ["stream_start", "stream_end", "title_change", "category_change", "raid_incoming", "raid_outgoing", "host_start", "host_end"]
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp of this event",
+      "format": "date-time"
+    },
+    "stream_id": {
+      "type": "string",
+      "description": "Unique identifier for this stream session",
+      "pattern": "^stream_[0-9]{10,12}$"
+    },
+    "title": {
+      "type": "string",
+      "description": "Stream title (for title_change or stream_start)",
+      "maxLength": 200
+    },
+    "category": {
+      "type": "string",
+      "description": "Game/category being streamed",
+      "maxLength": 100
+    },
+    "category_id": {
+      "type": "string",
+      "description": "Category identifier",
+      "pattern": "^cat_[0-9]{6,10}$"
+    },
+    "language": {
+      "type": "string",
+      "description": "Stream language code",
+      "pattern": "^[a-z]{2}$",
+      "default": "en"
+    },
+    "tags": {
+      "type": "array",
+      "description": "Stream tags",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 10
+    },
+    "raid_data": {
+      "type": "object",
+      "description": "Data for raid events",
+      "properties": {
+        "from_channel": {
+          "type": "string",
+          "description": "Channel raiding (for incoming)"
+        },
+        "to_channel": {
+          "type": "string",
+          "description": "Channel being raided (for outgoing)"
+        },
+        "viewer_count": {
+          "type": "integer",
+          "description": "Number of viewers in raid",
+          "minimum": 1
+        }
+      }
+    },
+    "is_mature": {
+      "type": "boolean",
+      "description": "Whether stream has mature content flag",
+      "default": false
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Additional metadata",
+      "properties": {
+        "stream_quality": {
+          "type": "string",
+          "description": "Stream quality setting",
+          "enum": ["source", "1080p60", "1080p", "720p60", "720p", "480p", "360p"]
+        },
+        "encoder": {
+          "type": "string",
+          "description": "Encoder being used"
+        }
+      }
+    }
+  }
+}
