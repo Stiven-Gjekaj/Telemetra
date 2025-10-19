@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChatEvent",
+  "description": "Schema for Twitch chat message events",
+  "type": "object",
+  "required": ["event_id", "timestamp", "stream_id", "user_id", "username", "message"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "Unique identifier for this event",
+      "pattern": "^chat_[0-9]+_[0-9]+$"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp in UTC",
+      "format": "date-time"
+    },
+    "stream_id": {
+      "type": "string",
+      "description": "Identifier for the stream/channel"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "Unique identifier for the user"
+    },
+    "username": {
+      "type": "string",
+      "description": "Display name of the user"
+    },
+    "message": {
+      "type": "string",
+      "description": "The chat message content"
+    },
+    "emotes": {
+      "type": "array",
+      "description": "List of emotes used in the message",
+      "items": {
+        "type": "string"
+      }
+    },
+    "is_subscriber": {
+      "type": "boolean",
+      "description": "Whether the user is a subscriber"
+    },
+    "is_moderator": {
+      "type": "boolean",
+      "description": "Whether the user is a moderator"
+    },
+    "badges": {
+      "type": "array",
+      "description": "User badges",
+      "items": {
+        "type": "string",
+        "enum": ["subscriber", "moderator", "vip", "broadcaster"]
+      }
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TransactionEvent",
+  "description": "Schema for transaction events (donations, subscriptions, bits)",
+  "type": "object",
+  "required": ["event_id", "timestamp", "stream_id", "user_id", "username", "transaction_type", "amount", "currency"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "description": "Unique identifier for this event",
+      "pattern": "^txn_[0-9]+_[0-9]+$"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp in UTC",
+      "format": "date-time"
+    },
+    "stream_id": {
+      "type": "string",
+      "description": "Identifier for the stream/channel"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "Unique identifier for the user"
+    },
+    "username": {
+      "type": "string",
+      "description": "Display name of the user"
+    },
+    "transaction_type": {
+      "type": "string",
+      "description": "Type of transaction",
+      "enum": ["donation", "subscription", "bits"]
+    },
+    "amount": {
+      "type": "number",
+      "description": "Transaction amount",
+      "minimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "description": "Currency type",
+      "enum": ["USD", "EUR", "GBP", "bits"]
+    },
+    "message": {
+      "type": "string",
+      "description": "Optional message from the user"
+    }
+  }
+}

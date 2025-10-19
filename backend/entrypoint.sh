@@ -1,20 +1,56 @@
 #!/bin/bash
 set -e
 
-echo "Waiting for Postgres..."
-until PGPASSWORD=$POSTGRES_PASSWORD psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c '\q' 2>/dev/null; do
-  sleep 1
+echo "Starting Telemetra Backend..."
+
+# Wait for PostgreSQL
+echo "Waiting for PostgreSQL..."
+until PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c '\q' 2>/dev/null; do
+  echo "PostgreSQL is unavailable - sleeping"
+  sleep 2
 done
-echo "Postgres is ready!"
+echo "PostgreSQL is up!"
 
-echo "Waiting for Kafka..."
-until curl -s kafka:29092 > /dev/null 2>&1 || [ $? -eq 52 ]; do
-  sleep 1
-done
-echo "Kafka is ready!"
+# Wait for Kafka (optional, with timeout)
+if [ -n "$KAFKA_BOOTSTRAP_SERVERS" ]; then
+  echo "Waiting for Kafka..."
+  KAFKA_HOST=$(echo $KAFKA_BOOTSTRAP_SERVERS | cut -d: -f1)
+  KAFKA_PORT=$(echo $KAFKA_BOOTSTRAP_SERVERS | cut -d: -f2)
 
-echo "Running database migrations..."
-alembic upgrade head || echo "No migrations to run or migrations failed"
+  timeout=60
+  elapsed=0
+  until nc -z $KAFKA_HOST $KAFKA_PORT 2>/dev/null || [ $elapsed -ge $timeout ]; do
+    echo "Kafka is unavailable - sleeping"
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
 
-echo "Starting application..."
+  if [ $elapsed -ge $timeout ]; then
+    echo "Warning: Kafka connection timeout, continuing anyway..."
+  else
+    echo "Kafka is up!"
+  fi
+fi
+
+# Wait for Redis (optional, with timeout)
+if [ -n "$REDIS_HOST" ]; then
+  echo "Waiting for Redis..."
+  timeout=30
+  elapsed=0
+  until nc -z $REDIS_HOST $REDIS_PORT 2>/dev/null || [ $elapsed -ge $timeout ]; do
+    echo "Redis is unavailable - sleeping"
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+
+  if [ $elapsed -ge $timeout ]; then
+    echo "Warning: Redis connection timeout, continuing anyway..."
+  else
+    echo "Redis is up!"
+  fi
+fi
+
+echo "All dependencies are ready!"
+
+# Execute the main command
 exec "$@"

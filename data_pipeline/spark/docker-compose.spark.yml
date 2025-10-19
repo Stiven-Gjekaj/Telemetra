@@ -1,0 +1,100 @@
+# Docker Compose configuration for Spark Streaming Job
+# This file can be included in your main docker-compose.yml or run standalone
+
+version: '3.8'
+
+services:
+  # Spark Streaming Job
+  spark-streaming:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telemetra-spark-streaming
+    hostname: spark-streaming
+    environment:
+      # Kafka Configuration
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+
+      # PostgreSQL Configuration
+      - POSTGRES_URL=jdbc:postgresql://postgres:5432/telemetra
+      - POSTGRES_USER=telemetra
+      - POSTGRES_PASSWORD=telemetra
+
+      # Spark Configuration
+      - SPARK_MASTER=local[*]
+      - SPARK_DRIVER_MEMORY=2g
+      - SPARK_EXECUTOR_MEMORY=2g
+      - SPARK_EXECUTOR_CORES=2
+
+      # Job Configuration
+      - CHECKPOINT_LOCATION=/tmp/spark-checkpoints
+      - ANOMALY_THRESHOLD=3.0
+
+      # Logging
+      - PYTHONUNBUFFERED=1
+
+    depends_on:
+      - kafka
+      - postgres
+
+    volumes:
+      # Persistent checkpoint storage
+      - spark-checkpoints:/tmp/spark-checkpoints
+      # Spark event logs for history server
+      - spark-events:/tmp/spark-events
+      # Optional: mount local code for development
+      # - ./spark_streaming_job.py:/app/spark_streaming_job.py
+
+    ports:
+      # Spark UI - web interface for monitoring
+      - "4040:4040"
+
+    networks:
+      - telemetra-network
+
+    restart: unless-stopped
+
+    # Resource limits for development
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "spark_streaming_job"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional: Spark History Server for viewing past jobs
+  spark-history:
+    image: apache/spark:3.5.0
+    container_name: telemetra-spark-history
+    hostname: spark-history
+    environment:
+      - SPARK_NO_DAEMONIZE=true
+    command: /opt/spark/sbin/start-history-server.sh
+    volumes:
+      - spark-events:/tmp/spark-events
+    ports:
+      - "18080:18080"
+    networks:
+      - telemetra-network
+    restart: unless-stopped
+
+volumes:
+  spark-checkpoints:
+    driver: local
+  spark-events:
+    driver: local
+
+networks:
+  telemetra-network:
+    external: true
+    # If network doesn't exist, create it:
+    # docker network create telemetra-network

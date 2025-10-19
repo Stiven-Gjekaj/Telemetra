@@ -1,0 +1,13 @@
+# PySpark and Kafka dependencies for Telemetra Streaming Job
+# Python 3.12+ compatible
+
+# Core PySpark - includes SQL and Streaming
+pyspark==3.5.0
+
+# Additional utilities
+py4j==0.10.9.7
+
+# Note: Kafka and JDBC connectors are loaded via spark.jars.packages
+# at runtime in the Spark session configuration:
+# - org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0
+# - org.postgresql:postgresql:42.7.1

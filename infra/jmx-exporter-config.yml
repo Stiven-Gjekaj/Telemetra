@@ -1,0 +1,61 @@
+# JMX Exporter configuration for Kafka metrics
+# Exposes Kafka broker metrics to Prometheus
+
+lowercaseOutputName: true
+lowercaseOutputLabelNames: true
+
+rules:
+  # Kafka Server metrics
+  - pattern: kafka.server<type=(.+), name=(.+), clientId=(.+), topic=(.+), partition=(.*)><>Value
+    name: kafka_server_$1_$2
+    type: GAUGE
+    labels:
+      clientId: "$3"
+      topic: "$4"
+      partition: "$5"
+
+  # Kafka Server metrics without topic
+  - pattern: kafka.server<type=(.+), name=(.+), clientId=(.+)><>Value
+    name: kafka_server_$1_$2
+    type: GAUGE
+    labels:
+      clientId: "$3"
+
+  # Kafka Server metrics without clientId
+  - pattern: kafka.server<type=(.+), name=(.+)><>Value
+    name: kafka_server_$1_$2
+    type: GAUGE
+
+  # Kafka Network metrics
+  - pattern: kafka.network<type=(.+), name=(.+), request=(.+)><>Value
+    name: kafka_network_$1_$2
+    type: GAUGE
+    labels:
+      request: "$3"
+
+  # Kafka Consumer Lag
+  - pattern: kafka.consumer<type=(.+), client-id=(.+), topic=(.+), partition=(.+)><>(.+)
+    name: kafka_consumer_$1_$5
+    type: GAUGE
+    labels:
+      clientId: "$2"
+      topic: "$3"
+      partition: "$4"
+
+  # Kafka Log metrics
+  - pattern: kafka.log<type=(.+), name=(.+), topic=(.+), partition=(.+)><>Value
+    name: kafka_log_$1_$2
+    type: GAUGE
+    labels:
+      topic: "$3"
+      partition: "$4"
+
+  # Kafka Controller metrics
+  - pattern: kafka.controller<type=(.+), name=(.+)><>Value
+    name: kafka_controller_$1_$2
+    type: GAUGE
+
+  # Generic catch-all for other metrics
+  - pattern: kafka.(\w+)<type=(.+), name=(.+)><>Value
+    name: kafka_$1_$2_$3
+    type: GAUGE
