@@ -1,6 +1,7 @@
 <div align="center">
 
-# 📊 Telemetra
+<img src="TelemetraLogo.png" alt="Logo" width="400"/>
+
 
 ### Real-time Twitch Analytics Platform
 
