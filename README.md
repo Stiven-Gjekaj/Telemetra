@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="TelemetraLogo.png" alt="Logo" width="400"/>
+<img src="TelemetraLogo.png" alt="Logo" width="500" height="400"/>
 
 
 ### Real-time Twitch Analytics Platform
